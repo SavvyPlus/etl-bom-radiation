@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to build lambdas and dependencies for lambdas
+
+Parameters:
+
+  SourceLocation:
+    Type: String
+    Description: S3 bucket path where the original source code (and cfn config) is stored
+
+  BOMLocation:
+    Type: String
+    Description: S3 bucket path where the built asx_final_snaphot lambda is stored
+
+  BOMKey:
+    Type: String
+    Description: S3 key where the built asx_final_snaphot lambda is stored
+
+  Name:
+    Type: String
+    Description: Name of the stack
+
+
+Resources:
+
+  BOMDLQ:
+    Type: AWS::SQS::Queue
+
+  BOMQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt [BOMDLQ, Arn]
+        maxReceiveCount: 5
+
+  BOMTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Join [ ".", [ bom-topic, !Ref "AWS::StackName" ] ]
+      Subscription:
+        - Endpoint:
+            Fn::GetAtt:
+              - "BOMQueue"
+              - "Arn"
+          Protocol: 'sqs'
+
+  BOMQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref 'BOMQueue']
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: BOMQueuePolicy
+        Statement:
+          - Resource:
+              - Fn::GetAtt:
+                - "BOMQueue"
+                - "Arn"
+            Effect: "Allow"
+            Sid: "Allow-User-SendMessage"
+            Action:
+              - "sqs:SendMessage"
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref BOMTopic
+            Principal:
+              AWS: "*"
+
+  LambdaRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: LambdaRequired
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: LambdaPolicy
+                Action:
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'lambda:*'
+                Effect: Allow
+                Resource: '*'
+              - Sid: CloudWatchWriteLogsPolicy
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  BOMLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          'Fn::ImportValue': 'BOMArtifactsBucket'
+        S3Key: !Ref BOMFinalSnapshotKey
+      FunctionName:
+        Fn::Sub: bom-${AWS::StackName}
+      Handler: "bom.handler"
+      Role: !GetAtt LambdaRunnerRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  BOMBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bom-bucket.${AWS::StackName}"
+
+  BOMInputBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: BOMInputBucketPermission
+    Properties:
+      BucketName: !Sub "bom-${AWS::StackName}.input"
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Function: !GetAtt BOMLambda.Arn
+
+  BOMInputBucketPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref BOMLambda
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::bom-${AWS::StackName}.input"
+
+  BOMProcessingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bom-${AWS::StackName}.processing"
+
+  BOMDoneBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bom-${AWS::StackName}.done"
+
+Outputs:
+
+  BOMDLQURL:
+    Description: "URL of DLQ"
+    Value:
+      Ref: BOMDLQ
+
+  BOMDLQArn:
+    Description: "Arn of DLQ"
+    Value:
+      !GetAtt [BOMDLQ, Arn]
+
+  BOMQueueURL:
+    Description: "URL of bom-queue"
+    Value:
+      Ref: BOMQueue
+
+  BOMQueueArn:
+    Description: "Arn of bom-queue"
+    Value:
+      !GetAtt [BOMQueue, Arn]
+
+  BOMTopicArn:
+    Description: "Arn of bom-topic"
+    Value:
+      Ref: BOMTopic
+
+  BOMInputBucketArn:
+    Description: "Arn of BOMInputBucket"
+    Value:
+      !GetAtt [BOMInputBucket, Arn]
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", BOMInputBucket ] ]
+
+  BOMProcessingBucketArn:
+    Description: "Arn of BOMProcessingBucket"
+    Value:
+      !GetAtt [BOMProcessingBucket, Arn]
+
+  BOMDoneBucketArn:
+    Description: "Arn of BOMDoneBucket"
+    Value:
+      !GetAtt [BOMDoneBucket, Arn]
+
+  BOMLambda:
+    Description: The ARN of the created BOMLambda function
+    Value:
+      !GetAtt BOMLambda.Arn
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", BOMLambda ] ]
+
+  BOMLambdaName:
+    Description: The Name of the created BOMLambda function
+    Value:
+      'bom'
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", BOMLambdaName ] ]

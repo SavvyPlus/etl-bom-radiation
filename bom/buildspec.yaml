@@ -1,0 +1,16 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - pip install -r asx-final-snapshot/requirements.txt -t asx-final-snapshot
+
+artifacts:
+  base-directory: asx-final-snapshot
+  files:
+    - '**/*'
+  type: zip
+
+cache:
+  paths:
+    - /root/.cache/pip
