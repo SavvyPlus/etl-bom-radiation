@@ -3,10 +3,10 @@ version: 0.2
 phases:
   install:
     commands:
-      - pip install -r bom/requirements.txt -t bom
+      - pip install -r autoload/requirements.txt -t autoload
 
 artifacts:
-  base-directory: bom
+  base-directory: autoload
   files:
     - '**/*'
   type: zip

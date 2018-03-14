@@ -201,6 +201,26 @@ Resources:
         Location: 'foamdino-etl-build-cache'
         Type: S3
 
+  CodeBuildAutoloadLambda:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CloudFormationRole
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/python:3.5.2
+        Type: LINUX_CONTAINER
+      Name: 'CodeBuildAutoloadLambda'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: 'autoload/buildspec.yaml'
+      TimeoutInMinutes: 5 # must be between 5 minutes and 8 hours
+      Cache:
+        Location: 'foamdino-etl-build-cache'
+        Type: S3
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -242,6 +262,19 @@ Resources:
               OutputArtifacts:
                 - Name: BuildBOMLambdaOutput
 
+            - Name: BuildAutoloadLambda
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: !Ref CodeBuildAutoloadLambda
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildAutoloadLambdaOutput
+
         - Name: TestStage
           Actions:
             - Name: CreateLambdasAndDependencies
@@ -253,6 +286,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
+                - Name: BuildAutoloadLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -264,7 +298,9 @@ Resources:
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
-                    "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] }
+                    "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
+                    "AutoloadLocation" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "URL"] },
+                    "AutoloadKey" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
 
@@ -302,6 +338,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
+                - Name: BuildAutoloadLambdaOutput
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -314,7 +351,9 @@ Resources:
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
-                    "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] }
+                    "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
+                    "AutoloadLocation" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "URL"] },
+                    "AutoloadKey" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
             - Name: ApproveChangeSet

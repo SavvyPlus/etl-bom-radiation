@@ -41,9 +41,9 @@ def process_file(filename):
 
     try:
         # move to processing bucket
-        # move_file(input_bucket, filename, processing_bucket, filename)
+        move_file(input_bucket, filename, processing_bucket, filename)
 
-        obj = s3.get_object(Bucket=input_bucket, Key=filename)
+        obj = s3.get_object(Bucket=processing_bucket, Key=filename)
         data = obj['Body'].read().decode('utf-8', 'ignore')
         lines = data.splitlines()
 
@@ -52,13 +52,16 @@ def process_file(filename):
         dst_key = s3_key(date_str, time_str, csv_name + '.csv')
 
         full_datetime_str = date_str + ' ' + time_str
-        formatted_csv_dir = extract_data(lines, radiation_type, csv_name, full_datetime_str)
+        formatted_csv = extract_data(lines, radiation_type, csv_name, full_datetime_str)
 
         # upload formatted file to production bucket
-        s3.upload_file(formatted_csv_dir, bom_bucket, dst_key)
+        s3.upload_file(formatted_csv, bom_bucket, dst_key)
+
+        # put formatted file to production bucket
+        s3.put_object(Bucket=bom_bucket, Key=dst_key, Body=bytes_csv)
 
         # move to done bucket
-        move_file(input_bucket, filename, done_bucket, filename)
+        move_file(processing_bucket, filename, done_bucket, filename)
 
     except Exception as e:
         print(e)
@@ -131,11 +134,8 @@ def extract_data(lines, radiation_type, csv_name, date_str):
 
         line_number = line_number + 1
 
-    res_dir = '/tmp/' + csv_name + '.csv'
+    list_res = list(map(lambda line: ','.join(line), data))
+    str_res = '\n'.join(list_res)
+    bytes_res = str_res.encode()
 
-    with open(res_dir, 'w') as r:
-        writer = csv.writer(r)
-        for each in data:
-            writer.writerow(each)
-
-    return res_dir
+    return bytes_res

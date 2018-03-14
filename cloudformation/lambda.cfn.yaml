@@ -9,11 +9,19 @@ Parameters:
 
   BOMLocation:
     Type: String
-    Description: S3 bucket path where the built asx_final_snaphot lambda is stored
+    Description: S3 bucket path where the built bom lambda is stored
 
   BOMKey:
     Type: String
-    Description: S3 key where the built asx_final_snaphot lambda is stored
+    Description: S3 key where the built bom lambda is stored
+
+  AutoloadLocation:
+    Type: String
+    Description: S3 bucket path where the built autoload lambda is stored
+
+  AutoloadKey:
+    Type: String
+    Description: S3 key where the built autoload lambda is stored
 
   Name:
     Type: String
@@ -88,6 +96,7 @@ Resources:
                   - 's3:*'
                   - 'sns:*'
                   - 'lambda:*'
+                  - 'athena:*'
                 Effect: Allow
                 Resource: '*'
               - Sid: CloudWatchWriteLogsPolicy
@@ -104,10 +113,24 @@ Resources:
       Code:
         S3Bucket:
           'Fn::ImportValue': 'BOMArtifactsBucket'
-        S3Key: !Ref BOMFinalSnapshotKey
+        S3Key: !Ref BOMKey
       FunctionName:
         Fn::Sub: bom-${AWS::StackName}
       Handler: "bom.handler"
+      Role: !GetAtt LambdaRunnerRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  AutoloadLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          'Fn::ImportValue': 'BOMArtifactsBucket'
+        S3Key: !Ref AutoloadKey
+      FunctionName:
+        Fn::Sub: autoload-${AWS::StackName}
+      Handler: "autoload.handler"
       Role: !GetAtt LambdaRunnerRole.Arn
       Runtime: python3.6
       Timeout: 300
@@ -142,8 +165,21 @@ Resources:
 
   BOMDoneBucket:
     Type: AWS::S3::Bucket
+    DependsOn: BOMDoneBucketPermission
     Properties:
       BucketName: !Sub "bom-${AWS::StackName}.done"
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Function: !GetAtt AutoloadLambda.Arn
+
+  BOMDoneBucketPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref AutoloadLambda
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::autoload-${AWS::StackName}.done"
 
 Outputs:
 
@@ -202,3 +238,17 @@ Outputs:
       'bom'
     Export:
       Name: !Join [ ":", [ !Ref "AWS::StackName", BOMLambdaName ] ]
+
+  AutoloadLambda:
+    Description: The ARN of the created AutoloadLambda function
+    Value:
+      !GetAtt AutoloadLambda.Arn
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", AutoloadLambda ] ]
+
+  AutoloadLambdaName:
+    Description: The Name of the created AutoloadLambda function
+    Value:
+      'autoload'
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", AutoloadLambdaName ] ]
