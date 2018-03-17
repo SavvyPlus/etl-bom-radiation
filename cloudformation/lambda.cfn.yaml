@@ -97,6 +97,7 @@ Resources:
                   - 'sns:*'
                   - 'lambda:*'
                   - 'athena:*'
+                  - 'glue:*'
                 Effect: Allow
                 Resource: '*'
               - Sid: CloudWatchWriteLogsPolicy
@@ -134,6 +135,9 @@ Resources:
       Role: !GetAtt LambdaRunnerRole.Arn
       Runtime: python3.6
       Timeout: 300
+      Environment:
+        Variables:
+          StackName: !Ref AWS::StackName
 
   BOMBucket:
     Type: AWS::S3::Bucket
@@ -180,6 +184,11 @@ Resources:
       FunctionName: !Ref AutoloadLambda
       Principal: s3.amazonaws.com
       SourceArn: !Sub "arn:aws:s3:::autoload-${AWS::StackName}.done"
+
+  BOMLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bom-${AWS::StackName}.log"
 
 Outputs:
 
