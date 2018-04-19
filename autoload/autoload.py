@@ -12,7 +12,7 @@ def lambda_handler(event, context):
     }
 
     # Query Execution Parameters
-    sql = 'MSCK REPAIR TABLE bom_prod.solar_data'
+    sql = 'MSCK REPAIR TABLE bom_prod.solar_data_2'
     context = {'Database': 'bom_prod'}
 
     client.start_query_execution(QueryString = sql,
