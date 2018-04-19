@@ -7,10 +7,10 @@ from datetime import datetime
 
 s3 = boto3.client('s3')
 
-input_bucket = 'bom-prod.input'
-processing_bucket = 'bom-prod.processing'
-done_bucket = 'bom-prod.done'
-bom_bucket = 'bom-prod.output'
+input_bucket = 'bom-prod-2.input'
+processing_bucket = 'bom-prod-2.processing'
+done_bucket = 'bom-prod-2.done'
+bom_bucket = 'bom-prod-2.output'
 
 
 def move_file(src_bucket, src_key, dst_bucket, dst_key):
@@ -43,19 +43,24 @@ def process_file(filename):
         # move to processing bucket
         move_file(input_bucket, filename, processing_bucket, filename)
 
+        print("Get object: %s" % filename)
         obj = s3.get_object(Bucket=processing_bucket, Key=filename)
         data = obj['Body'].read().decode('utf-8', 'ignore')
         lines = data.splitlines()
+        print("Lines: %d" % len(lines))
 
         csv_name, radiation_type, date_str, time_str = extract_datetime(filename)
+        print("Extract filename: %s" % csv_name)
 
         dst_key = s3_key(date_str, time_str, csv_name + '.csv')
+        print("Parition: %s" % dst_key)
 
         full_datetime_str = date_str + ' ' + time_str
-        formatted_csv = extract_data(lines, radiation_type, csv_name, full_datetime_str)
+        bytes_csv = extract_data(lines, radiation_type, csv_name, full_datetime_str)
 
+        print("Upload file [%s] to [%s]" % (dst_key, bom_bucket))
         # upload formatted file to production bucket
-        s3.upload_file(formatted_csv, bom_bucket, dst_key)
+        # s3.upload_file(formatted_csv, bom_bucket, dst_key)
 
         # put formatted file to production bucket
         s3.put_object(Bucket=bom_bucket, Key=dst_key, Body=bytes_csv)
@@ -129,7 +134,7 @@ def extract_data(lines, radiation_type, csv_name, date_str):
                 if (radiation == nodata_value):
                     x = x + cellsize
                     continue
-                data.append([date_str, radiation_type, y, x, radiation])
+                data.append([date_str, radiation_type, str(y), str(x), str(radiation)])
                 x = x + cellsize
 
         line_number = line_number + 1
