@@ -209,7 +209,7 @@ Resources:
         Location: 'foamdino-etl-build-cache'
         Type: S3
 
-  CodeBuildPartitionLambda:
+  CodeBuildBOMPartitionLambda:
     Type: AWS::CodeBuild::Project
     DependsOn: CloudFormationRole
     Properties:
@@ -219,7 +219,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:3.5.2
         Type: LINUX_CONTAINER
-      Name: 'CodeBuildPartitionLambda'
+      Name: 'CodeBuildBOMPartitionLambda'
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
@@ -229,7 +229,7 @@ Resources:
         Location: 'foamdino-etl-build-cache'
         Type: S3
 
-  CodeBuildCreateDatabaseLambda:
+  CodeBuildBOMCreateDatabaseLambda:
     Type: AWS::CodeBuild::Project
     DependsOn: CloudFormationRole
     Properties:
@@ -239,7 +239,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:3.5.2
         Type: LINUX_CONTAINER
-      Name: 'CodeBuildCreateDatabaseLambda'
+      Name: 'CodeBuildBOMCreateDatabaseLambda'
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
@@ -249,7 +249,7 @@ Resources:
         Location: 'foamdino-etl-build-cache'
         Type: S3
 
-  CodeBuildCleanTestFilesLambda:
+  CodeBuildBOMCleanTestFilesLambda:
     Type: AWS::CodeBuild::Project
     DependsOn: CloudFormationRole
     Properties:
@@ -259,7 +259,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:3.5.2
         Type: LINUX_CONTAINER
-      Name: 'CodeBuildCleanTestFilesLambda'
+      Name: 'CodeBuildBOMCleanTestFilesLambda'
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
@@ -310,44 +310,44 @@ Resources:
               OutputArtifacts:
                 - Name: BuildBOMLambdaOutput
 
-            - Name: BuildPartitionLambda
+            - Name: BuildBOMPartitionLambda
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: !Ref CodeBuildPartitionLambda
+                ProjectName: !Ref CodeBuildBOMPartitionLambda
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: BuildPartitionLambdaOutput
+                - Name: BuildBOMPartitionLambdaOutput
 
-            - Name: BuildCreateDatabaseLambda
+            - Name: BuildBOMCreateDatabaseLambda
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: !Ref CodeBuildCreateDatabaseLambda
+                ProjectName: !Ref CodeBuildBOMCreateDatabaseLambda
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: BuildCreateDatabaseLambdaOutput
+                - Name: BuildBOMCreateDatabaseLambdaOutput
 
-            - Name: BuildCleanTestFilesLambda
+            - Name: BuildBOMCleanTestFilesLambda
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: !Ref CodeBuildCleanTestFilesLambda
+                ProjectName: !Ref CodeBuildBOMCleanTestFilesLambda
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: BuildCreateDatabaseLambdaOutput
+                - Name: CodeBuildBOMCleanTestFilesLambdaOutput
 
         - Name: TestStage
           Actions:
@@ -374,10 +374,10 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "URL"] },
-                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "URL"] },
-                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "ObjectKey"] }
+                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "URL"] },
+                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
+                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
+                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
 
@@ -389,7 +389,7 @@ Resources:
                 Version: '1'
               InputArtifacts:
                 - Name: SourceCode
-                - Name: BuildCreateDatabaseLambdaOutput
+                - Name: BuildBOMCreateDatabaseLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -435,8 +435,8 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMDeleteTestFilesLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMDeleteTestFilesLambdaOutput", "URL"] },
-                    "BOMDeleteTestFilesKey" : { "Fn::GetArtifactAtt" : ["BuildBOMDeleteTestFilesLambdaOutput", "ObjectKey"] }
+                    "BOMCleanTestFilesLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCleanTestFilesLambdaOutput", "URL"] },
+                    "BOMCleanTestFilesKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCleanTestFilesLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '4'
 
@@ -490,10 +490,10 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "URL"] },
-                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "URL"] },
-                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "ObjectKey"] }
+                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "URL"] },
+                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
+                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
+                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
 
