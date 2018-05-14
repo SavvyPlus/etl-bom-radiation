@@ -360,8 +360,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
-                - Name: BuildPartitionLambdaOutput
-                - Name: BuildCreateDatabaseLambdaOutput
+                - Name: BuildBOMPartitionLambdaOutput
+                - Name: BuildBOMCreateDatabaseLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -475,8 +475,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
-                - Name: BuildPartitionLambdaOutput
-                - Name: BuildCreateDatabaseLambdaOutput
+                - Name: BuildBOMPartitionLambdaOutput
+                - Name: BuildBOMCreateDatabaseLambdaOutput
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn: !GetAtt [CFNRole, Arn]
