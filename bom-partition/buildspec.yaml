@@ -3,10 +3,10 @@ version: 0.2
 phases:
   install:
     commands:
-      - pip install -r autoload/requirements.txt -t autoload
+      - pip install -r bom-partition/requirements.txt -t bom-partition
 
 artifacts:
-  base-directory: autoload
+  base-directory: bom-partition
   files:
     - '**/*'
   type: zip

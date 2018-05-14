@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to build lambdas and dependencies for lambdas
+
+Parameters:
+
+  SourceLocation:
+    Type: String
+    Description: S3 bucket path where the original source code (and cfn config) is stored
+
+  BOMDeleteTestFilesKey:
+    Type: String
+    Description: S3 key where the built delete lambda is stored
+
+  Name:
+    Type: String
+    Description: Name of the stack
+
+Resources:
+
+  LambdaRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: LambdaRequired
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: LambdaPolicy
+                Action:
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'lambda:*'
+                  - 'athena:*'
+                  - 'glue:*'
+                Effect: Allow
+                Resource: '*'
+              - Sid: CloudWatchWriteLogsPolicy
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  BOMCleanTestFilesLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          'Fn::ImportValue': 'BOMArtifactsBucket'
+        S3Key: !Ref BOMDeleteTestFilesKey
+      FunctionName:
+        Fn::Sub: bom_clean_test_files
+      Handler: "bom_clean_test_files.lambda_handler"
+      Role: !GetAtt LambdaRunnerRole.Arn
+      Runtime: python3.6
+      Environment:
+        Variables:
+          StackName: !Ref AWS::StackName
+      Timeout: 300
+
+  BOMCleanBucketTestFiles:
+    Type: Custom::DeleteTestFiles
+    DependsOn:
+      - BOMCleanTestFilesLambda
+    Properties:
+      ServiceToken: !GetAtt 'BOMCleanTestFilesLambda.Arn'
+      BucketName: bom-test-precis-forecast

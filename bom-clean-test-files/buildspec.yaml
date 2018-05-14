@@ -1,0 +1,16 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - pip install -r bom-clean-test-files/requirements.txt -t bom-clean-test-files
+
+artifacts:
+  base-directory: bom-clean-test-files
+  files:
+    - '**/*'
+  type: zip
+
+cache:
+  paths:
+    - /root/.cache/pip

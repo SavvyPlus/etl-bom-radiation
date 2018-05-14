@@ -49,6 +49,14 @@ Parameters:
     Default: UpdateBOMStack
     Description: A name for the production BOM stack change set
     Type: String
+  CleanupStackName:
+    Default: delete-test-files-bom
+    Description: A name for the cleanup stack
+    Type: String
+  CreateDBChangeSet:
+    Default: CreateBOMDBChangeSet
+    Description: A name for the production create database stack change set
+    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -201,7 +209,7 @@ Resources:
         Location: 'foamdino-etl-build-cache'
         Type: S3
 
-  CodeBuildAutoloadLambda:
+  CodeBuildPartitionLambda:
     Type: AWS::CodeBuild::Project
     DependsOn: CloudFormationRole
     Properties:
@@ -211,11 +219,51 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:3.5.2
         Type: LINUX_CONTAINER
-      Name: 'CodeBuildAutoloadLambda'
+      Name: 'CodeBuildPartitionLambda'
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
-        BuildSpec: 'autoload/buildspec.yaml'
+        BuildSpec: 'bom-partition/buildspec.yaml'
+      TimeoutInMinutes: 5 # must be between 5 minutes and 8 hours
+      Cache:
+        Location: 'foamdino-etl-build-cache'
+        Type: S3
+
+  CodeBuildCreateDatabaseLambda:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CloudFormationRole
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/python:3.5.2
+        Type: LINUX_CONTAINER
+      Name: 'CodeBuildCreateDatabaseLambda'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: 'bom-create-database/buildspec.yaml'
+      TimeoutInMinutes: 5 # must be between 5 minutes and 8 hours
+      Cache:
+        Location: 'foamdino-etl-build-cache'
+        Type: S3
+
+  CodeBuildCleanTestFilesLambda:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CloudFormationRole
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/python:3.5.2
+        Type: LINUX_CONTAINER
+      Name: 'CodeBuildCleanTestFilesLambda'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: 'bom-clean-test-files/buildspec.yaml'
       TimeoutInMinutes: 5 # must be between 5 minutes and 8 hours
       Cache:
         Location: 'foamdino-etl-build-cache'
@@ -262,18 +310,44 @@ Resources:
               OutputArtifacts:
                 - Name: BuildBOMLambdaOutput
 
-            - Name: BuildAutoloadLambda
+            - Name: BuildPartitionLambda
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: !Ref CodeBuildAutoloadLambda
+                ProjectName: !Ref CodeBuildPartitionLambda
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: BuildAutoloadLambdaOutput
+                - Name: BuildPartitionLambdaOutput
+
+            - Name: BuildCreateDatabaseLambda
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: !Ref CodeBuildCreateDatabaseLambda
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildCreateDatabaseLambdaOutput
+
+            - Name: BuildCleanTestFilesLambda
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: !Ref CodeBuildCleanTestFilesLambda
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildCreateDatabaseLambdaOutput
 
         - Name: TestStage
           Actions:
@@ -286,7 +360,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
-                - Name: BuildAutoloadLambdaOutput
+                - Name: BuildPartitionLambdaOutput
+                - Name: BuildCreateDatabaseLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -299,10 +374,36 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "AutoloadLocation" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "URL"] },
-                    "AutoloadKey" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "ObjectKey"] }
+                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "URL"] },
+                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "ObjectKey"] },
+                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "URL"] },
+                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
+
+            - Name: CreateTestDatabaseLambda
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceCode
+                - Name: BuildCreateDatabaseLambdaOutput
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Ref TestStackName
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplateConfiguration: !Sub "SourceCode::cloudformation/config/${TestStackConfig}"
+                TemplatePath: "SourceCode::cloudformation/athena-lambda.cfn.yaml"
+                ParameterOverrides: !Sub |
+                  {
+                    "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
+                    "BOMCreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
+                    "BOMCreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
+                  }
+              RunOrder: '2'
 
             - Name: ApproveTestStack
               ActionTypeId:
@@ -313,7 +414,43 @@ Resources:
               Configuration:
                 NotificationArn: !Ref CodePipelineSNSTopic
                 CustomData: !Sub 'Do you want to create a changeset against the production stack and delete the test stack?'
-              RunOrder: '2'
+              RunOrder: '3'
+
+            - Name: CleanupTestFiles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceCode
+                - Name: BuildBOMDeleteTestFilesLambdaOutput
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Ref CleanupStackName
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplateConfiguration: !Sub "SourceCode::cloudformation/config/${TestStackConfig}"
+                TemplatePath: "SourceCode::cloudformation/clean-test-files-lambda.cfn.yaml"
+                ParameterOverrides: !Sub |
+                  {
+                    "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
+                    "BOMDeleteTestFilesLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMDeleteTestFilesLambdaOutput", "URL"] },
+                    "BOMDeleteTestFilesKey" : { "Fn::GetArtifactAtt" : ["BuildBOMDeleteTestFilesLambdaOutput", "ObjectKey"] }
+                  }
+              RunOrder: '4'
+
+            - Name: DeleteCleanupStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: DELETE_ONLY
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Ref CleanupStackName
+              RunOrder: '5'
 
             - Name: DeleteTestStack
               ActionTypeId:
@@ -325,7 +462,7 @@ Resources:
                 ActionMode: DELETE_ONLY
                 RoleArn: !GetAtt [CFNRole, Arn]
                 StackName: !Ref TestStackName
-              RunOrder: '3'
+              RunOrder: '6'
 
         - Name: ProdStage
           Actions:
@@ -338,7 +475,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
-                - Name: BuildAutoloadLambdaOutput
+                - Name: BuildPartitionLambdaOutput
+                - Name: BuildCreateDatabaseLambdaOutput
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn: !GetAtt [CFNRole, Arn]
@@ -352,10 +490,13 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "AutoloadLocation" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "URL"] },
-                    "AutoloadKey" : { "Fn::GetArtifactAtt" : ["BuildAutoloadLambdaOutput", "ObjectKey"] }
+                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "URL"] },
+                    "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildPartitionLambdaOutput", "ObjectKey"] },
+                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "URL"] },
+                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
+
             - Name: ApproveChangeSet
               ActionTypeId:
                 Category: Approval
@@ -366,6 +507,7 @@ Resources:
                 NotificationArn: !Ref CodePipelineSNSTopic
                 CustomData: !Sub 'A new change set was created for the ${ProdStackName} stack. Do you want to implement the changes?'
               RunOrder: '2'
+
             - Name: ExecuteChangeSet
               ActionTypeId:
                 Category: Deploy
@@ -378,6 +520,55 @@ Resources:
                 RoleArn: !GetAtt [CFNRole, Arn]
                 StackName: !Ref ProdStackName
               RunOrder: '3'
+
+            - Name: CreateChangeSet2
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceCode
+                - Name: BuildBOMCreateDatabaseLambdaOutput
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: 'bom-prod-createdb-stack'
+                Capabilities: CAPABILITY_NAMED_IAM
+                ChangeSetName: !Ref CreateDBChangeSet
+                TemplateConfiguration: !Sub "SourceCode::cloudformation/config/${ProdStackConfig}"
+                TemplatePath: "SourceCode::cloudformation/athena-lambda.cfn.yaml"
+                ParameterOverrides: !Sub |
+                  {
+                    "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
+                    "BOMCreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
+                    "BOMCreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
+                  }
+              RunOrder: '4'
+
+            - Name: ApproveChangeSet2
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: '1'
+              Configuration:
+                NotificationArn: !Ref CodePipelineSNSTopic
+                CustomData: !Sub 'A new change set was created for the ${ProdStackName} stack. Do you want to implement the changes?'
+              RunOrder: '5'
+
+            - Name: ExecuteChangeSet2
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Ref CreateDBChangeSet
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: 'bom-prod-createdb-stack'
+              RunOrder: '6'
 
 Outputs:
 
