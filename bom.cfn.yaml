@@ -3,7 +3,7 @@ Description: Template to build code pipeline, build and deploy lambdas from gith
 Parameters:
   ArtifactBucket:
     Type: String
-    Default: foamdino-etl-bom-bucket
+    Default: foamdino-etl-pipeline-bucket
     Description: Name of existing S3 bucket for storing pipeline artifacts
   GitHubOwner:
     Type: String
