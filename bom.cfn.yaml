@@ -424,7 +424,7 @@ Resources:
                 Version: '1'
               InputArtifacts:
                 - Name: SourceCode
-                - Name: BuildBOMDeleteTestFilesLambdaOutput
+                - Name: BuildBOMCleanTestFilesLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt [CFNRole, Arn]
