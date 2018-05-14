@@ -347,7 +347,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: CodeBuildBOMCleanTestFilesLambdaOutput
+                - Name: BuildBOMCleanTestFilesLambdaOutput
 
         - Name: TestStage
           Actions:
