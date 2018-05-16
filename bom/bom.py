@@ -7,10 +7,10 @@ from datetime import datetime
 
 s3 = boto3.client('s3')
 
-input_bucket = 'bom-prod-2.input'
-processing_bucket = 'bom-prod-2.processing'
-done_bucket = 'bom-prod-2.done'
-bom_bucket = 'bom-prod-2.output'
+# input_bucket = 'bom-prod-2.input'
+# processing_bucket = 'bom-prod-2.processing'
+# done_bucket = 'bom-prod-2.done'
+# bom_bucket = 'bom-prod-2.output'
 
 
 def move_file(src_bucket, src_key, dst_bucket, dst_key):
@@ -28,7 +28,7 @@ def copy_file(src_bucket, src_key, dst_bucket, dst_key):
 def s3_key(input_date, input_time, filename):
     parts = input_date.split("-")
     tparts = input_time.split(":")
-    key = "year=%s/month=%s/day=%s/hour=%s/%s" % (parts[0], parts[1], parts[2], tparts[0], filename)
+    key = "athena/year=%s/month=%s/day=%s/hour=%s/%s" % (parts[0], parts[1], parts[2], tparts[0], filename)
     return key
 
 
@@ -40,8 +40,18 @@ def process_file(filename):
     """
 
     try:
+        stack_name = os.environ['StackName']
+        bom_bucket = os.environ['BucketName']
+
+        input_key_fmt = "in/%s"
+        processing_key_fmt = "processing/%s"
+        done_key_fmt = "done/%s"
+
+        input_key = input_key_fmt % (filename,)
+        processing_key = processing_key_fmt % (filename,)
+
         # move to processing bucket
-        move_file(input_bucket, filename, processing_bucket, filename)
+        move_file(bom_bucket, input_key, bom_bucket, processing_key)
 
         print("Get object: %s" % filename)
         obj = s3.get_object(Bucket=processing_bucket, Key=filename)
@@ -52,21 +62,22 @@ def process_file(filename):
         csv_name, radiation_type, date_str, time_str = extract_datetime(filename)
         print("Extract filename: %s" % csv_name)
 
-        dst_key = s3_key(date_str, time_str, csv_name + '.csv')
-        print("Parition: %s" % dst_key)
+        athena_key = s3_key(date_str, time_str, csv_name + '.csv')
+        print("Parition: %s" % athena_key)
 
         full_datetime_str = date_str + ' ' + time_str
         bytes_csv = extract_data(lines, radiation_type, csv_name, full_datetime_str)
 
-        print("Upload file [%s] to [%s]" % (dst_key, bom_bucket))
+        print("Upload file [%s] to [%s]" % (athena_key, bom_bucket))
         # upload formatted file to production bucket
         # s3.upload_file(formatted_csv, bom_bucket, dst_key)
 
         # put formatted file to production bucket
-        s3.put_object(Bucket=bom_bucket, Key=dst_key, Body=bytes_csv)
+        s3.put_object(Bucket=bom_bucket, Key=athena_key, Body=bytes_csv)
 
         # move to done bucket
-        move_file(processing_bucket, filename, done_bucket, filename)
+        done_key = done_key_fmt % (filename,)
+        move_file(bom_bucket, done_key, bom_bucket, done_key)
 
     except Exception as e:
         print(e)
