@@ -406,11 +406,8 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "URL"] },
                     "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
                     "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] },
                     "CreateBucketKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateBucketLambdaOutput", "ObjectKey"] }
                   }
@@ -524,11 +521,8 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
-                    "PartitionLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "URL"] },
                     "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
                     "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] },
                     "CreateBucketKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateBucketLambdaOutput", "ObjectKey"] }
                   }
