@@ -432,7 +432,6 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMCreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
                     "BOMCreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '2'
@@ -572,7 +571,6 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMCreateDatabaseLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "URL"] },
                     "BOMCreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '4'
