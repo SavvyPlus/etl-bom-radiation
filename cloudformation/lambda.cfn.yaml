@@ -31,6 +31,10 @@ Parameters:
     Type: String
     Description: S3 key where the built create_database lambda is stored
 
+  CreateBucketKey:
+    Type: String
+    Description: S3 key where the built create_bucket lambda is stored
+
   Name:
     Type: String
     Description: Name of the stack
