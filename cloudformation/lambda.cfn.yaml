@@ -199,7 +199,7 @@ Resources:
     Type: Custom::CreateBucket
     DependsOn:
       - BOMBucketPermission
-      - BOMPartitionPermision
+      - BOMPartitionPermission
     Properties:
       ServiceToken: !GetAtt 'BOMCreateBucketLambda.Arn'
       BucketName: !Sub "bom-${AWS::StackName}"
