@@ -82,6 +82,6 @@ Resources:
         Fn::Sub: bom-${AWS::StackName}-db
 
 Outputs:
-  ASXCreateDatabaseArn:
+  BOMCreateDatabaseArn:
     Description: The arn of the bom_create_database function.
     Value: !GetAtt 'BOMCreateDatabaseLambda.Arn'
