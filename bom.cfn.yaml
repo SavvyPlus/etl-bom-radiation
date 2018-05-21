@@ -394,7 +394,6 @@ Resources:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
                 - Name: BuildBOMPartitionLambdaOutput
-                - Name: BuildBOMCreateDatabaseLambdaOutput
                 - Name: BuildBOMCreateBucketLambdaOutput
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
@@ -408,7 +407,6 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
                     "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] },
                     "CreateBucketKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateBucketLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'
@@ -507,7 +505,6 @@ Resources:
                 - Name: SourceCode
                 - Name: BuildBOMLambdaOutput
                 - Name: BuildBOMPartitionLambdaOutput
-                - Name: BuildBOMCreateDatabaseLambdaOutput
                 - Name: BuildBOMCreateBucketLambdaOutput
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
@@ -522,7 +519,6 @@ Resources:
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
                     "BOMKey" : { "Fn::GetArtifactAtt" : ["BuildBOMLambdaOutput", "ObjectKey"] },
                     "PartitionKey" : { "Fn::GetArtifactAtt" : ["BuildBOMPartitionLambdaOutput", "ObjectKey"] },
-                    "CreateDatabaseKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateDatabaseLambdaOutput", "ObjectKey"] },
                     "CreateBucketKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCreateBucketLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '1'

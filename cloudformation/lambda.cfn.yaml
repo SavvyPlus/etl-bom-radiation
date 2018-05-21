@@ -23,14 +23,6 @@ Parameters:
     Type: String
     Description: S3 key where the built partition lambda is stored
 
-  # CreateDatabaseLocation:
-  #   Type: String
-  #   Description: S3 bucket path where the built create_database lambda is stored
-
-  CreateDatabaseKey:
-    Type: String
-    Description: S3 key where the built create_database lambda is stored
-
   CreateBucketKey:
     Type: String
     Description: S3 key where the built create_bucket lambda is stored
@@ -144,23 +136,6 @@ Resources:
       FunctionName:
         Fn::Sub: partition-${AWS::StackName}
       Handler: "partition.handler"
-      Role: !GetAtt LambdaRunnerRole.Arn
-      Runtime: python3.6
-      Timeout: 300
-      Environment:
-        Variables:
-          StackName: !Ref AWS::StackName
-
-  CreateDatabaseLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        S3Bucket:
-          'Fn::ImportValue': 'BOMArtifactsBucket'
-        S3Key: !Ref CreateDatabaseKey
-      FunctionName:
-        Fn::Sub: create-database-${AWS::StackName}
-      Handler: "create-database.handler"
       Role: !GetAtt LambdaRunnerRole.Arn
       Runtime: python3.6
       Timeout: 300
