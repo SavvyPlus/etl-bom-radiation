@@ -464,8 +464,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "SourceLocation" : { "Fn::GetArtifactAtt" : ["SourceCode", "URL"] },
-                    "BOMCleanTestFilesLocation" : { "Fn::GetArtifactAtt" : ["BuildBOMCleanTestFilesLambdaOutput", "URL"] },
-                    "BOMCleanTestFilesKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCleanTestFilesLambdaOutput", "ObjectKey"] }
+                    "BOMDeleteTestFilesKey" : { "Fn::GetArtifactAtt" : ["BuildBOMCleanTestFilesLambdaOutput", "ObjectKey"] }
                   }
               RunOrder: '4'
 
