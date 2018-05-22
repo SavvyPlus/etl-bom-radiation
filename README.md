@@ -1,4 +1,11 @@
 # etl-bom-radiation
+
+## Flow : 
+From and upload file to special unzip we use the Unzip portal to move the data to input folder inside a bucket, and then we add partition yearl and mont to be query in athena. 
+
+This is specifically for Radiation data and it loads ad-hoc when we get new Data 
+
+
 #TO-DO
 
 We need a description of this handlers, explaining the status of it and what needs to be done to get it into production together with a link to the asana task or tasks that have been involved, and hierarcchy of all the people involved in the project
