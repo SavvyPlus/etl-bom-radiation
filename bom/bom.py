@@ -145,7 +145,7 @@ def extract_data(lines, radiation_type, csv_name, date_str):
                 if (radiation == nodata_value):
                     x = x + cellsize
                     continue
-                data.append([date_str, radiation_type, str(y), str(x), str(radiation)])
+                data.append([date_str, radiation_type, str(x), str(y), str(radiation)])
                 x = x + cellsize
 
         line_number = line_number + 1
